@@ -9,10 +9,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "Cprogram.h"
 
 int SUDOKU_GEN_NUM = 9;
-char* FILENAME = "test2.txt";
+char* FILENAME = "test4.txt";
 int ITTERATION_LIMIT = 10;
 
 // Declaration of the Sudoku's nodes 
@@ -122,9 +123,13 @@ void run_solver(struct Sudoku_Solver ss) {
 		ss = check_row(ss);
 		ss = check_column(ss);
 		ss = check_block(ss);
+		ss = isolate_rows(ss); 
+		ss = isolate_columns(ss);
+		ss = isolate_block(ss);
 		ss = check_sol_r(ss);
 		ss = check_sol_c(ss);
 		ss = check_sol_b(ss);
+		
 		printf("New ");
 		ss = check_all(ss);
 		displayer(ss);
@@ -494,18 +499,6 @@ void displayer(struct Sudoku_Solver ss) {
 }
 
 /*
-	* function: set_num_xy
-	*
-	* in: the Sudoku, coordinate X and Y of the Sudoku node, new value
-	* out: the Sudoku
-	*
-	* purpose: Changes the value of the sudoku number at the X and Y coordinate. 
-*/
-struct Sudoku_Solver set_num_xy(struct Sudoku_Solver ss, int x, int y, int set) {
-	ss.node[x][y].number == set;
-}
-
-/*
 	* function: get_num_xy
 	*
 	* in: the Sudoku, coordinate X and Y of the Sudoku node
@@ -538,4 +531,192 @@ struct Sudoku_Solver null_rcb_checker(struct Sudoku_Solver ss, int x, int y) {
 		ss.node[x][y].block[a] = 0;
 	}
 	return ss;
+}
+
+
+bool int_array_match(int a1[], int a2[]) {
+	bool match = true;
+
+	if (sizeof(a1) != sizeof(a2)) {
+		match = false;
+	}
+	for (int x = 0; x < sizeof(a1); x++) {
+		if (a1[x] != a2[x])
+		{
+			match = false;
+		}
+	}
+
+	return match;
+}
+
+
+int *get_distinct(int a1[]) {
+	int target[] = {0,0,0,0,0,0,0,0,0};
+	int next = 0;
+	for (int x = 0; x < sizeof(a1); x++) {
+		if (a1[x] != 0)
+		{
+			target[next] = a1[x];
+			next++;
+		}
+	}
+	return target;
+}
+
+struct Sudoku_Solver isolate_rows(struct Sudoku_Solver ss) {
+	int found_number = 0, count = 0, found_location_x = 0, found_location_y = 0;
+	bool broke = false;
+
+	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
+		for (int a = 0; a < SUDOKU_GEN_NUM; a++) {
+			for (int b = 0; b < SUDOKU_GEN_NUM; b++) {
+
+				found_number = get_num_xy(ss, a, b);
+				if (found_number == target_number) {
+					broke = true;
+					break;
+				}
+				if (found_number == 0 && 
+					ss.node[a][b].row[target_number - 1] == target_number){
+					count++;
+					found_location_x = a;
+					found_location_y = b;
+				}
+			}
+			if (!broke) {
+				if (count == 1 && ss.node[found_location_x][found_location_y].number == 0) {
+					ss.node[found_location_x][found_location_y].number = target_number;
+					null_rcb_checker(ss, found_location_x, found_location_y);
+					check_row(ss);
+					check_column(ss);
+					check_block(ss);
+				}
+			}
+			broke = false;
+			count = 0;
+		}
+	}
+	return ss;
+}
+
+struct Sudoku_Solver isolate_columns(struct Sudoku_Solver ss) {
+	int found_number = 0, count = 0, found_location_x = 0, found_location_y = 0; int b = 0;
+	bool broke = false;
+
+	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
+		for (int a = 0; a < SUDOKU_GEN_NUM; a++) {
+			for (int b = 0; b < SUDOKU_GEN_NUM; b++) {
+
+				found_number = get_num_xy(ss, b, a);
+				if (found_number == target_number) {
+					broke = true;
+					break;
+				}
+				if (found_number == 0 && 
+					ss.node[b][a].column[target_number - 1] == target_number) {
+					count++;
+					found_location_x = b;
+					found_location_y = a;
+				}
+			}
+			if (!broke) {
+				if (count == 1 && get_num_xy(ss, found_location_x, found_location_y) == 0) {
+					null_rcb_checker(ss, found_location_x, found_location_y);
+					check_row(ss);
+					check_column(ss);
+					check_block(ss);
+				}
+			}
+			broke = false;
+			count = 0;
+		}
+	}
+	return ss;
+}
+struct Sudoku_Solver isolate_block(struct Sudoku_Solver ss) {
+	int found_number = 0, count = 0, found_location_x = 0, found_location_y = 0;
+	bool broke = false;
+
+	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
+		for (int x = 0; x < SUDOKU_GEN_NUM; x = x + 3) {
+			for (int y = 0; y < SUDOKU_GEN_NUM; y = y + 3) {
+				for (int a = 0; a < SUDOKU_GEN_NUM / 3; a++) {
+					for (int b = 0; b < SUDOKU_GEN_NUM / 3; b++) {
+						found_number = get_num_xy(ss, a + x, b + y);
+
+						if (found_number == target_number) {
+							broke = true;
+							break;
+						}
+						if (found_number == 0 && ss.node[a + x][b + y].block[target_number - 1] == target_number) {
+							count++;
+							found_location_x = a + x;
+							found_location_y = b + y;
+						}
+					}
+					if (broke) {
+						break;
+					}
+				}
+				if (!broke) {
+					if (count == 1 && get_num_xy(ss, found_location_x, found_location_y) == 0) {
+						ss.node[found_location_x][found_location_y].number = target_number;
+						null_rcb_checker(ss, found_location_x, found_location_y);
+						check_row(ss);
+						check_column(ss);
+						check_block(ss);
+					}
+				}
+				broke = false;
+				count = 0;
+			}
+		}
+	}
+	return ss;
+}
+
+/*
+struct Sudoku_Solver block_grouping_check(struct Sudoku_Solver ss) {
+	int found_number = 0;
+	int last_number = 0;
+
+	for (int a = 0; a < SUDOKU_GEN_NUM/3; a++) {
+		for (int b = 0; b < SUDOKU_GEN_NUM/3; b++) {
+			found_number = get_num_xy(ss, a, b);
+
+			if (found_number == 0 && ss.node[a][b].check_b > 2) {
+
+				
+				for (int x = 0; x < SUDOKU_GEN_NUM; x++) {
+					// Find which number is possibly remaining
+					//   and enter is as the main number for that Sudoku coordinate
+					//   also clean it's row, column, and block checkers.
+					if (ss.node[a][b].block[x] != 0) {
+						last_number = ss.node[a][b].block[x];
+						set_num_xy(ss, a, b, last_number);
+						null_rcb_checker(ss, a, b);
+					}
+				}
+				
+
+
+			}
+		}
+	}
+
+	return ss;
+}
+*/
+
+/*
+	* function: set_num_xy
+	*
+	* in: the Sudoku, coordinate X and Y of the Sudoku node, new value
+	* out: the Sudoku
+	*
+	* purpose: Changes the value of the sudoku number at the X and Y coordinate.
+*/
+struct Sudoku_Solver set_num_xy(struct Sudoku_Solver ss, int x, int y, int set) {
+	ss.node[x][y].number = set;
 }
