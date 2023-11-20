@@ -1,0 +1,6 @@
+﻿  Cprogram.c
+C:\Users\theho\source\repos\jmhSudoku\jmhSudoku\Cprogram.c(48,4): warning C4098: 'main': 'void' function returning a value
+C:\Users\theho\source\repos\jmhSudoku\jmhSudoku\Cprogram.c(71,2): warning C4098: 'main': 'void' function returning a value
+C:\Users\theho\source\repos\jmhSudoku\jmhSudoku\Cprogram.c(505,23): warning C4553: '==': result of expression not used; did you intend '='?
+C:\Users\theho\source\repos\jmhSudoku\jmhSudoku\Cprogram.c(506): warning C4716: 'set_num_xy': must return a value
+  jmhSudoku.vcxproj -> C:\Users\theho\source\repos\jmhSudoku\x64\Debug\jmhSudoku.exe
