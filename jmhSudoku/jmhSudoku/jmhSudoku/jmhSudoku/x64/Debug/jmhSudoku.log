@@ -1,0 +1,6 @@
+﻿  Cprogram.c
+C:\Users\theho\source\repos\jmhSudoku\jmhSudoku\Cprogram.c(49,4): warning C4098: 'main': 'void' function returning a value
+C:\Users\theho\source\repos\jmhSudoku\jmhSudoku\Cprogram.c(72,2): warning C4098: 'main': 'void' function returning a value
+C:\Users\theho\source\repos\jmhSudoku\jmhSudoku\Cprogram.c(564): warning C4172: returning address of local variable or temporary: target
+C:\Users\theho\source\repos\jmhSudoku\jmhSudoku\Cprogram.c(722): warning C4716: 'set_num_xy': must return a value
+  jmhSudoku.vcxproj -> C:\Users\theho\source\repos\jmhSudoku\x64\Debug\jmhSudoku.exe
