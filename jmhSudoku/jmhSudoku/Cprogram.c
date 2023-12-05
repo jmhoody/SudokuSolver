@@ -1,7 +1,7 @@
 /*
 	*	Sudoku File
 	*	Author: J.M.Hood
-	*	Version: November 2023
+	*	Version: December 2023
 	*
 	*	This file drives the solution.
 */
@@ -13,7 +13,7 @@
 #include "Cprogram.h"
 
 int SUDOKU_GEN_NUM = 9;
-char* FILENAME = "test4.txt";
+char* FILENAME = "test5.txt";
 int ITTERATION_LIMIT = 10;
 
 // Declaration of the Sudoku's nodes 
@@ -34,7 +34,6 @@ struct Sudoku_Solver
 	struct Node node[9][9];
 	int check_a;	// how many missing values the sudoku has
 } sudoku_solver;
-
 
 void main() {
 	welcome();
@@ -65,6 +64,7 @@ void main() {
 	
 	// SOLVE TIME
 	check_all(my_ss);
+	printf("\nRun Sudoku: %s\n", FILENAME);
 	printf("Attempting solution with %d itterations\n", ITTERATION_LIMIT);
 	printf("\n------START SOLVING!-------\n");
 	run_solver(my_ss);
@@ -118,7 +118,7 @@ void run_solver(struct Sudoku_Solver ss) {
 		//   2.1 the sudoku has 0 missing values remaining, thus has finished solving, OR
 		//	 2.2 the sudoku has missing values remaining, but the functions cannot solve for this solution.
 	while (trial < ITTERATION_LIMIT) {
-		printf("\nItteration: %d\n", trial);
+		printf("\n=== === Itteration: %d === ===\n", trial);
 		
 		ss = check_row(ss);
 		ss = check_column(ss);
@@ -126,11 +126,15 @@ void run_solver(struct Sudoku_Solver ss) {
 		ss = isolate_rows(ss); 
 		ss = isolate_columns(ss);
 		ss = isolate_block(ss);
+		ss = block_checker_pairs(ss);
+		ss = row_checker_pair_eliminator(ss);
+		ss = column_checker_pair_eliminator(ss);
+		//ss = pointed_pair_eliminator(ss);
 		ss = check_sol_r(ss);
 		ss = check_sol_c(ss);
 		ss = check_sol_b(ss);
 		
-		printf("New ");
+		printf("\nNew ");
 		ss = check_all(ss);
 		displayer(ss);
 
@@ -366,13 +370,12 @@ struct Sudoku_Solver check_sol_r(struct Sudoku_Solver ss) {
 					// Find which number is possibly remaining
 					//   and enter is as the main number for that Sudoku coordinate
 					//   also clean it's row, column, and block checkers.
-					if (ss.node[a][b].row[x] != 0) {
+					if (ss.node[a][b].row[x] != 0 && get_num_xy(ss, a, b) == 0) {
 						last_number = ss.node[a][b].row[x];
-						ss.node[a][b].number = last_number;
-						null_rcb_checker(ss, a, b);
+						printf("-check_sol_r found-\n");
+						ss = set_num_xy(ss, a, b, last_number);
 					}
 				}
-
 			}
 		}
 	}
@@ -410,13 +413,12 @@ struct Sudoku_Solver check_sol_c(struct Sudoku_Solver ss) {
 					// Find which number is possibly remaining
 					//   and enter is as the main number for that Sudoku coordinate
 					//   also clean it's row, column, and block checkers.
-					if (ss.node[a][b].column[x] != 0) {
+					if (ss.node[a][b].column[x] != 0 && get_num_xy(ss,a,b) == 0) {
 						last_number = ss.node[a][b].column[x];
-						set_num_xy(ss, a, b, last_number);
-						null_rcb_checker(ss, a, b);
+						printf("-check_sol_c found-\n");
+						ss = set_num_xy(ss, a, b, last_number);
 					}
 				}
-
 			}
 		}
 	}
@@ -455,13 +457,12 @@ struct Sudoku_Solver check_sol_b(struct Sudoku_Solver ss) {
 					// Find which number is possibly remaining
 					//   and enter is as the main number for that Sudoku coordinate
 					//   also clean it's row, column, and block checkers.
-					if (ss.node[a][b].block[x] != 0) {
+					if (ss.node[a][b].block[x] != 0 && get_num_xy(ss, a, b) == 0) {
 						last_number = ss.node[a][b].block[x];
+						printf("-check_sol_b found-\n");
 						set_num_xy(ss, a, b, last_number);
-						null_rcb_checker(ss, a, b);
 					}
 				}
-
 			}
 		}
 	}
@@ -533,6 +534,109 @@ struct Sudoku_Solver null_rcb_checker(struct Sudoku_Solver ss, int x, int y) {
 	return ss;
 }
 
+struct Sudoku_Solver isolate_rows(struct Sudoku_Solver ss) {
+	int found_number = 0, count = 0, coord_x = 0, coord_y = 0;
+	bool broke = false;
+
+	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
+		for (int a = 0; a < SUDOKU_GEN_NUM; a++) {
+			for (int b = 0; b < SUDOKU_GEN_NUM; b++) {
+
+				found_number = get_num_xy(ss, a, b);
+				if (found_number == target_number) {
+					broke = true;
+					break;
+				}
+				if (found_number == 0 && 
+					ss.node[a][b].row[target_number - 1] == target_number){
+					count++;
+					coord_x = a;
+					coord_y = b;
+				}
+			}
+			if (!broke) {
+				if (count == 1 && ss.node[coord_x][coord_y].number == 0) {
+					printf("-isolate_rows found-\n");
+					ss = set_num_xy(ss, coord_x, coord_y, target_number);
+				}
+			}
+			broke = false;
+			count = 0;
+		}
+	}
+	return ss;
+}
+
+struct Sudoku_Solver isolate_columns(struct Sudoku_Solver ss) {
+	int found_number = 0, count = 0, coord_x = 0, coord_y = 0; int b = 0;
+	bool broke = false;
+
+	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
+		for (int a = 0; a < SUDOKU_GEN_NUM; a++) {
+			for (int b = 0; b < SUDOKU_GEN_NUM; b++) {
+
+				found_number = get_num_xy(ss, b, a);
+				if (found_number == target_number) {
+					broke = true;
+					break;
+				}
+				if (found_number == 0 && 
+					ss.node[b][a].column[target_number - 1] == target_number) {
+					count++;
+					coord_x = b;
+					coord_y = a;
+				}
+			}
+			if (!broke) {
+				if (count == 1 && get_num_xy(ss, coord_x, coord_y) == 0) {
+					printf("-isolate_column found-\n");
+					ss = set_num_xy(ss, coord_x, coord_y, target_number);
+				}
+			}
+			broke = false;
+			count = 0;
+		}
+	}
+	return ss;
+}
+
+struct Sudoku_Solver isolate_block(struct Sudoku_Solver ss) {
+	int found_number = 0, count = 0, coord_x = 0, coord_y = 0;
+	bool broke = false;
+
+	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
+		for (int x = 0; x < SUDOKU_GEN_NUM; x = x + 3) {
+			for (int y = 0; y < SUDOKU_GEN_NUM; y = y + 3) {
+				for (int a = 0; a < SUDOKU_GEN_NUM / 3; a++) {
+					for (int b = 0; b < SUDOKU_GEN_NUM / 3; b++) {
+						found_number = get_num_xy(ss, a + x, b + y);
+
+						if (found_number == target_number) {
+							broke = true;
+							break;
+						}
+						if (found_number == 0 && ss.node[a + x][b + y].block[target_number - 1] == target_number) {
+							count++;
+							coord_x = a + x;
+							coord_y = b + y;
+						}
+					}
+					if (broke)
+						break;
+				}
+				if (!broke) {
+					if (count == 1 && get_num_xy(ss, coord_x, coord_y) == 0) {
+						printf("-isolate_block found-\n");
+						ss = set_num_xy(ss, coord_x, coord_y, target_number);
+					}
+				}
+				broke = false;
+				count = 0;
+			}
+		}
+	}
+	return ss;
+}
 
 bool int_array_match(int a1[], int a2[]) {
 	bool match = true;
@@ -550,7 +654,6 @@ bool int_array_match(int a1[], int a2[]) {
 	return match;
 }
 
-
 int *get_distinct(int a1[]) {
 	int target[] = {0,0,0,0,0,0,0,0,0};
 	int next = 0;
@@ -564,150 +667,375 @@ int *get_distinct(int a1[]) {
 	return target;
 }
 
-struct Sudoku_Solver isolate_rows(struct Sudoku_Solver ss) {
-	int found_number = 0, count = 0, found_location_x = 0, found_location_y = 0;
-	bool broke = false;
-
-	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
-		for (int a = 0; a < SUDOKU_GEN_NUM; a++) {
-			for (int b = 0; b < SUDOKU_GEN_NUM; b++) {
-
-				found_number = get_num_xy(ss, a, b);
-				if (found_number == target_number) {
-					broke = true;
-					break;
-				}
-				if (found_number == 0 && 
-					ss.node[a][b].row[target_number - 1] == target_number){
-					count++;
-					found_location_x = a;
-					found_location_y = b;
-				}
-			}
-			if (!broke) {
-				if (count == 1 && ss.node[found_location_x][found_location_y].number == 0) {
-					ss.node[found_location_x][found_location_y].number = target_number;
-					null_rcb_checker(ss, found_location_x, found_location_y);
-					check_row(ss);
-					check_column(ss);
-					check_block(ss);
-				}
-			}
-			broke = false;
-			count = 0;
+int get_checker_non_zero(int a1[], int counter) {
+	int target = 0;
+	while (counter < SUDOKU_GEN_NUM) {
+		if (a1[counter] != 0) {
+			target = a1[counter];
+			break;
 		}
+		counter++;
 	}
-	return ss;
+	return target;
 }
 
-struct Sudoku_Solver isolate_columns(struct Sudoku_Solver ss) {
-	int found_number = 0, count = 0, found_location_x = 0, found_location_y = 0; int b = 0;
-	bool broke = false;
+/* New idea for solving functions {block_checker_pairs}
+*     - search within blocks: 
+*	   - If 1 node's checker array has 2 numbers remaining AND
+*	   - another node's checker array has the same 2 numbers remaining: 
+*		- Remove those 2 numbers from other nodes within the block. 
+*	(perhaps expand this for 3 numbers)
+*/
+struct Sudoku_Solver block_checker_pairs(struct Sudoku_Solver ss) {
+	int found_number = 0, test_number = 0; 
+	int coord_x1 = 0, coord_y1 = 0, coord_x2 = 0, coord_y2 = 0;
+	int target_1 = 0, target_2 = 0;
+	bool broke = false, match_found = false;
 
-	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
-		for (int a = 0; a < SUDOKU_GEN_NUM; a++) {
-			for (int b = 0; b < SUDOKU_GEN_NUM; b++) {
+	for (int x = 0; x < SUDOKU_GEN_NUM; x = x + 3) {
+		for (int y = 0; y < SUDOKU_GEN_NUM; y = y + 3) {
+			for (int a = 0; a < SUDOKU_GEN_NUM / 3; a++) {
+				for (int b = 0; b < SUDOKU_GEN_NUM / 3; b++) {
+					// first, find an incomplete node to start from
+					coord_x1 = a + x;
+					coord_y1 = b + y;
+					found_number = get_num_xy(ss, coord_x1, coord_y1);
+					if (found_number > 0) {
+						broke = true;
+						break;
+					}
 
-				found_number = get_num_xy(ss, b, a);
-				if (found_number == target_number) {
-					broke = true;
-					break;
-				}
-				if (found_number == 0 && 
-					ss.node[b][a].column[target_number - 1] == target_number) {
-					count++;
-					found_location_x = b;
-					found_location_y = a;
-				}
-			}
-			if (!broke) {
-				if (count == 1 && get_num_xy(ss, found_location_x, found_location_y) == 0) {
-					null_rcb_checker(ss, found_location_x, found_location_y);
-					check_row(ss);
-					check_column(ss);
-					check_block(ss);
-				}
-			}
-			broke = false;
-			count = 0;
-		}
-	}
-	return ss;
-}
-struct Sudoku_Solver isolate_block(struct Sudoku_Solver ss) {
-	int found_number = 0, count = 0, found_location_x = 0, found_location_y = 0;
-	bool broke = false;
+					if (found_number == 0 && ss.node[coord_x1, coord_y1]->check_b == 2) {
+						// second, get the number pair
+						int counter = 0;
+						target_1 = get_checker_non_zero(ss.node[coord_x1, coord_y1]->block, counter);
+						target_2 = get_checker_non_zero(ss.node[coord_x1, coord_y1]->block, target_1);
 
-	for (int target_number = 1; target_number <= SUDOKU_GEN_NUM; target_number++) {
-		for (int x = 0; x < SUDOKU_GEN_NUM; x = x + 3) {
-			for (int y = 0; y < SUDOKU_GEN_NUM; y = y + 3) {
-				for (int a = 0; a < SUDOKU_GEN_NUM / 3; a++) {
-					for (int b = 0; b < SUDOKU_GEN_NUM / 3; b++) {
-						found_number = get_num_xy(ss, a + x, b + y);
+						// third, look through the block for a match
+						for (int m = 0; m < SUDOKU_GEN_NUM / 3; m++) {
+							for (int n = 0; n < SUDOKU_GEN_NUM / 3; n++) {
+								coord_x2 = m + x;
+								coord_y2 = n + y;
+								test_number = get_num_xy(ss, coord_x2, coord_y2);
 
-						if (found_number == target_number) {
-							broke = true;
-							break;
+								if (test_number == 0 &&
+									found_number == 0 &&
+									(coord_x1 != coord_x2 || coord_y1 != coord_y2) &&
+									target_1 != 0 && target_2 != 0 &&
+									int_array_match(ss.node[coord_x1, coord_y1]->block, ss.node[coord_x2, coord_y2]->block)) {
+									// an exact match is found.
+
+									/*printf("\n row coordinates: %d(%d,%d) -> %d(%d,%d) : possible numbers [%d,%d]\n",
+										found_number, coord_x1 + 1, coord_y1 + 1, test_number, coord_x2 + 1, coord_y2 + 1, target_1, target_2);*/
+									match_found = true;
+									break;
+								}
+							}
+							if (match_found)
+								break;
 						}
-						if (found_number == 0 && ss.node[a + x][b + y].block[target_number - 1] == target_number) {
-							count++;
-							found_location_x = a + x;
-							found_location_y = b + y;
+
+						if (match_found) {
+							printf("\n row coordinates: %d(%d,%d) -> %d(%d,%d) : possible numbers [%d,%d]\n",
+								found_number, coord_x1 + 1, coord_y1 + 1, test_number, coord_x2 + 1, coord_y2 + 1, target_1, target_2);
+							for (int m = 0; m < SUDOKU_GEN_NUM / 3; m++) {
+								for (int n = 0; n < SUDOKU_GEN_NUM / 3; n++) {
+									if (get_num_xy(ss, m + x, n + y) == 0 ||
+										(m + x != coord_x1 && n + y != coord_y1) ||
+										(m + x != coord_x2 && n + y != coord_y2))
+									{
+										ss.node[m + x][n + y].block[target_1 - 1] = 0;
+										ss.node[m + x][n + y].block[target_2 - 1] = 0;
+										ss.node[m + x][n + y].row[target_1 - 1] = 0;
+										ss.node[m + x][n + y].row[target_2 - 1] = 0;
+										ss.node[m + x][n + y].column[target_1 - 1] = 0;
+										ss.node[m + x][n + y].column[target_2 - 1] = 0;
+										check_row(ss);
+										check_column(ss);
+										check_block(ss);
+									}
+								}
+							}
+							match_found = false;
 						}
 					}
-					if (broke) {
+				}
+				/*if (broke)
+					break;*/
+			}
+			broke = false;
+		}
+	}
+	
+	return ss;
+}
+
+/* New idea for solving functions {row_checker_pair_eliminator}
+*     - search within rows:
+*	   - If 1 node's checker array has 2 numbers remaining AND
+*	   - another node's checker array has the same 2 numbers remaining:
+*		- Remove those 2 numbers from other nodes within the row.
+*	(perhaps expand this for 3 numbers)
+*/
+struct Sudoku_Solver row_checker_pair_eliminator(struct Sudoku_Solver ss) {
+	int found_number = 0, test_number = 0;
+	int coord_x1 = 0, coord_y1 = 0, coord_x2 = 0, coord_y2 = 0;
+	int target_1 = 0, target_2 = 0;
+	bool broke = false, match_found = false;
+
+	for (int x = 0; x < SUDOKU_GEN_NUM; x++) {
+		for (int y = 0; y < SUDOKU_GEN_NUM; y++) {
+			// first, find an incomplete node to start from
+			coord_x1 = x;
+			coord_y1 = y;
+			found_number = get_num_xy(ss, coord_x1, coord_y1);
+
+			if (found_number == 0 && ss.node[coord_x1, coord_y1]->check_r == 2) {
+				int counter = 0;
+				target_1 = get_checker_non_zero(ss.node[coord_x1, coord_y1]->row, counter);
+				target_2 = get_checker_non_zero(ss.node[coord_x1, coord_y1]->row, target_1);
+
+				for (int n = 0; n < SUDOKU_GEN_NUM; n++) {
+					coord_x2 = x;
+					coord_y2 = n;
+					test_number = get_num_xy(ss, coord_x2, coord_y2);
+
+					/*if (test_number == 0)
+						printf("test_number is empty\n");
+					if (found_number == test_number)
+						printf("found_number doesn't equal test_number\n");
+					if (int_array_match(ss.node[coord_x1, coord_y1]->row, ss.node[coord_x2, coord_y2]->row))
+						printf("arrays match\n");
+					printf("-\n");*/
+
+
+					if (test_number == 0 &&
+						found_number == 0 &&
+						(coord_x1 != coord_x2 || coord_y1 != coord_y2) &&
+						int_array_match(ss.node[coord_x1, coord_y1]->row, ss.node[coord_x2, coord_y2]->row)) {
+						// an exact match is found.
+						match_found = true;
 						break;
 					}
 				}
-				if (!broke) {
-					if (count == 1 && get_num_xy(ss, found_location_x, found_location_y) == 0) {
-						ss.node[found_location_x][found_location_y].number = target_number;
-						null_rcb_checker(ss, found_location_x, found_location_y);
+				if (match_found) {
+
+					printf("\n row coordinates: %d(%d,%d) -> %d(%d,%d) : possible numbers [%d,%d]\n",
+						found_number, coord_x1 + 1, coord_y1 + 1, test_number, coord_x2 + 1, coord_y2 + 1, target_1, target_2);
+
+					for (int n = 0; n < SUDOKU_GEN_NUM; n++) {
+						if (get_num_xy(ss, x, n) == 0 ||
+							(n != coord_x1) ||
+							(n != coord_x2))
+						{
+							ss.node[x][n].block[target_1 - 1] = 0;
+							ss.node[x][n].block[target_2 - 1] = 0;
+							ss.node[x][n].row[target_1 - 1] = 0;
+							ss.node[x][n].row[target_2 - 1] = 0;
+							ss.node[x][n].column[target_1 - 1] = 0;
+							ss.node[x][n].column[target_2 - 1] = 0;
+							check_row(ss);
+							check_column(ss);
+							check_block(ss);
+						}
+					}
+					match_found = false;
+				}
+			}
+		}
+	}
+
+	return ss;
+}
+
+/* New idea for solving functions {column_checker_pair_eliminator}
+*     - search within column:
+*	   - If 1 node's checker array has 2 numbers remaining AND
+*	   - another node's checker array has the same 2 numbers remaining:
+*		- Remove those 2 numbers from other nodes within the column.
+*	(perhaps expand this for 3 numbers)
+*/
+struct Sudoku_Solver column_checker_pair_eliminator(struct Sudoku_Solver ss) {
+	int found_number = 0, test_number = 0;
+	int coord_x1 = 0, coord_y1 = 0, coord_x2 = 0, coord_y2 = 0;
+	int target_1 = 0, target_2 = 0;
+	bool broke = false, match_found = false;
+
+	for (int x = 0; x < SUDOKU_GEN_NUM; x++) {
+		for (int y = 0; y < SUDOKU_GEN_NUM; y++) {
+			// first, find an incomplete node to start from
+			coord_x1 = y;
+			coord_y1 = x;
+			found_number = get_num_xy(ss, coord_x1, coord_y1);
+
+			if (found_number == 0 && ss.node[coord_x1, coord_y1]->check_r == 2) {
+				int counter = 0;
+				target_1 = get_checker_non_zero(ss.node[coord_x1, coord_y1]->row, counter);
+				target_2 = get_checker_non_zero(ss.node[coord_x1, coord_y1]->row, target_1);
+
+				for (int n = 0; n < SUDOKU_GEN_NUM; n++) {
+					coord_x2 = y;
+					coord_y2 = n;
+					test_number = get_num_xy(ss, coord_x2, coord_y2);
+
+					if (test_number == 0 &&
+						found_number == 0 &&
+						(coord_x1 != coord_x2 || coord_y1 != coord_y2) &&
+						int_array_match(ss.node[coord_x1, coord_y1]->row, ss.node[coord_x2, coord_y2]->row)) {
+						// an exact match is found.
+						match_found = true;
+						break;
+					}
+				}
+				if (match_found) {
+
+					printf("\n row coordinates: %d(%d,%d) -> %d(%d,%d) : possible numbers [%d,%d]\n",
+						found_number, coord_x1 + 1, coord_y1 + 1, test_number, coord_x2 + 1, coord_y2 + 1, target_1, target_2);
+
+					for (int n = 0; n < SUDOKU_GEN_NUM; n++) {
+						if (get_num_xy(ss, n,y) == 0 ||
+							(n != coord_x1) ||
+							(n != coord_x2))
+						{
+							ss.node[n][y].block[target_1 - 1] = 0;
+							ss.node[n][y].block[target_2 - 1] = 0;
+							ss.node[n][y].row[target_1 - 1] = 0;
+							ss.node[n][y].row[target_2 - 1] = 0;
+							ss.node[n][y].column[target_1 - 1] = 0;
+							ss.node[n][y].column[target_2 - 1] = 0;
+							check_row(ss);
+							check_column(ss);
+							check_block(ss);
+						}
+					}
+					match_found = false;
+				}
+			}
+		}
+	}
+
+	return ss;
+}
+
+
+/* Pointed Pair function {pointed_pair_row & pointed pair column}
+*	- search within blocks:
+*    - run through numbers 1-9:
+*	  - if the row / column checker contains number only twice, check: 
+*	   - if the other number is in the SAME row / column;
+*		- remove the number from all OTHER checkers in that row / column
+*			(like as if the number was placed.)
+* (perhaps expand this for pointed triplet)
+*/
+struct Sudoku_Solver pointed_pair_eliminator(struct Sudoku_Solver ss) {
+	int found_number = 0, test_number = 0;
+	int coord_x1 = 0, coord_y1 = 0, coord_x2 = 0, coord_y2 = 0;
+	int target_1 = 0, target_2 = 0;
+	bool broke = false, match_found = false;
+
+	check_row(ss);
+	check_column(ss);
+	check_block(ss);
+	
+	for (int x = 0; x < SUDOKU_GEN_NUM; x = x + 3) {
+		for (int y = 0; y < SUDOKU_GEN_NUM; y = y + 3) {
+			for (int a = 0; a < SUDOKU_GEN_NUM / 3; a++) {
+				for (int b = 0; b < SUDOKU_GEN_NUM / 3; b++) {
+					// first, find an incomplete node to start from
+					coord_x1 = a + x;
+					coord_y1 = b + y;
+					found_number = get_num_xy(ss, coord_x1, coord_y1);
+					if (found_number > 0) 
+						break;
+					if (found_number == 0 && ss.node[coord_x1][coord_y1].check_b == 2) {
+						// We've found a possible pointed pair. 
+						//   Look for within the block again for another possible pair, except these coordinates
+
+						int counter = 0;
+						target_1 = get_checker_non_zero(ss.node[coord_x1, coord_y1]->block, counter);
+						target_2 = get_checker_non_zero(ss.node[coord_x1, coord_y1]->block, target_1);
+
+						// third, look through the block for a match
+						for (int m = 0; m < SUDOKU_GEN_NUM / 3; m++) {
+							for (int n = 0; n < SUDOKU_GEN_NUM / 3; n++) {
+								coord_x2 = m + x;
+								coord_y2 = n + y;
+								test_number = get_num_xy(ss, coord_x2, coord_y2);
+
+								if (test_number == 0 &&
+									found_number != test_number &&
+									int_array_match(ss.node[coord_x1, coord_y1]->block, ss.node[coord_x2, coord_y2]->block)) {
+									// an exact match is found.
+									printf("\n pointed pair row found, coordinates: (%d,%d) : (%d,%d) : possible numbers [%d,%d]\n",
+										coord_x1 + 1, coord_y1 + 1, coord_x2 + 1, coord_y2 + 1, target_1, target_2);
+									match_found = true;
+									break;
+								}
+							}
+							if (match_found)
+								break;
+						}
+						
+						if (match_found && coord_x1 == coord_x2) {
+							printf("\n pointed pair row found, coordinates: (%d,%d) : (%d,%d) : possible numbers [%d,%d]\n",
+								coord_x1 + 1, coord_y1 + 1, coord_x2 + 1, coord_y2 + 1, target_1, target_2);
+							for (int c = 0; c < SUDOKU_GEN_NUM; c++) {
+								if (c == coord_y1) {
+									// do nothing
+								}
+								else if (c == coord_y2) {
+									// do nothing
+								}
+								else if (get_num_xy(ss, coord_x1, c) > 0) {
+									// do nothing
+								}
+								else {
+									ss.node[coord_x1][c].block[target_1 - 1] = 0;
+									ss.node[coord_x1][c].block[target_2 - 1] = 0;
+									ss.node[coord_x1][c].row[target_1 - 1] = 0;
+									ss.node[coord_x1][c].row[target_2 - 1] = 0;
+									ss.node[coord_x1][c].column[target_1 - 1] = 0;
+									ss.node[coord_x1][c].column[target_2 - 1] = 0;
+								}
+							}
+						}
+
+						if (match_found && coord_y1 == coord_y2) {
+							printf("\n pointed pair column found, coordinates: (%d,%d) : (%d,%d) : possible numbers [%d,%d]\n",
+								coord_x1 + 1, coord_y1 + 1, coord_x2 + 1, coord_y2 + 1, target_1, target_2);
+							for (int c = 0; c < SUDOKU_GEN_NUM; c++) {
+								if (c == coord_x1) {
+									// do nothing
+								}
+								else if (c == coord_x2) {
+									// do nothing
+								}
+								else if (get_num_xy(ss, c,coord_y1) > 0) {
+									// do nothing
+								}
+								else {
+									ss.node[c][coord_y1].block[target_1 - 1] = 0;
+									ss.node[c][coord_y1].block[target_2 - 1] = 0;
+									ss.node[c][coord_y1].row[target_1 - 1] = 0;
+									ss.node[c][coord_y1].row[target_2 - 1] = 0;
+									ss.node[c][coord_y1].column[target_1 - 1] = 0;
+									ss.node[c][coord_y1].column[target_2 - 1] = 0;
+								}
+							}
+							
+						}
+						match_found = false;
 						check_row(ss);
 						check_column(ss);
 						check_block(ss);
+						
 					}
 				}
-				broke = false;
-				count = 0;
 			}
 		}
 	}
 	return ss;
 }
-
-/*
-struct Sudoku_Solver block_grouping_check(struct Sudoku_Solver ss) {
-	int found_number = 0;
-	int last_number = 0;
-
-	for (int a = 0; a < SUDOKU_GEN_NUM/3; a++) {
-		for (int b = 0; b < SUDOKU_GEN_NUM/3; b++) {
-			found_number = get_num_xy(ss, a, b);
-
-			if (found_number == 0 && ss.node[a][b].check_b > 2) {
-
-				
-				for (int x = 0; x < SUDOKU_GEN_NUM; x++) {
-					// Find which number is possibly remaining
-					//   and enter is as the main number for that Sudoku coordinate
-					//   also clean it's row, column, and block checkers.
-					if (ss.node[a][b].block[x] != 0) {
-						last_number = ss.node[a][b].block[x];
-						set_num_xy(ss, a, b, last_number);
-						null_rcb_checker(ss, a, b);
-					}
-				}
-				
-
-
-			}
-		}
-	}
-
-	return ss;
-}
-*/
 
 /*
 	* function: set_num_xy
@@ -718,5 +1046,14 @@ struct Sudoku_Solver block_grouping_check(struct Sudoku_Solver ss) {
 	* purpose: Changes the value of the sudoku number at the X and Y coordinate.
 */
 struct Sudoku_Solver set_num_xy(struct Sudoku_Solver ss, int x, int y, int set) {
+	printf("At [%d,%d] : %d\n", x+1, y+1, set);
 	ss.node[x][y].number = set;
+	ss = check_all(ss);
+	null_rcb_checker(ss, x, y);
+	check_row(ss);
+	check_column(ss);
+	check_block(ss);
+	displayer(ss);
+	printf("\n");
+	return ss;
 }

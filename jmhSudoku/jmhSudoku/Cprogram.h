@@ -23,3 +23,9 @@ int* get_distinct(int a1[]);
 struct Sudoku_Solver isolate_rows(struct Sudoku_Solver ss);
 struct Sudoku_Solver isolate_columns(struct Sudoku_Solver ss);
 struct Sudoku_Solver isolate_block(struct Sudoku_Solver ss);
+
+struct Sudoku_Solver block_checker_pairs(struct Sudoku_Solver ss);
+int get_checker_non_zero(int a1[], int counter);
+struct Sudoku_Solver row_checker_pair_eliminator(struct Sudoku_Solver ss);
+struct Sudoku_Solver column_checker_pair_eliminator(struct Sudoku_Solver ss);
+struct Sudoku_Solver pointed_pair_eliminator(struct Sudoku_Solver ss);
